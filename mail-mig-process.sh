@@ -2,26 +2,39 @@
 
 # mail-mig-process.sh - script for migration of mailboxes from one host to another
 # format script parameters:
-# mail-mig-process.sh <input_file> <dry> <host1> <host2>
+# mail-mig-process.sh <input_file> <host1> <host2> <threads> <dry>
 
 # variables
 #
-# threads - number of mailsync instances running at the same time
 # input_file - file with users to migrate
+# host1 - host of the source mailserver
+# host2 - host of the target mailserver
+# threads - number of mailsync instances running at the same time
 # dry - value "--dry" makes imapsync do nothing for real; it just prints what would be done without --dry. (for debug purposes)
-# host1 - host of the source mailbox
-# host2 - host of the target mailbox
-threads=10 # example: 10, but you can change it to any number, depends on your hardware. 40 is get my CPU (Core i7-3770, 4 cores, 8 threads) to 75%, and RAM to ~9-10 GB 
+
 input_file=$1
-dry=$2
-host1=$3
-host2=$4
+host1=$2
+host2=$3
+threads=$4
+dry=$5
 
 # !!! IMPORTANT !!!
 # Format of the file $input_file (filds separated by tab!!!):
 # user1<Tab>$user_auth1<Tab>$password1<Tab>$user2<Tab>$user_auth2<Tab>$password2
 # if you not use "admin user" for migration, then you can use empty string for user_auth1 and user_auth2, like this:
 # user1<Tab><Tab>$password1<Tab>$user2<Tab><Tab>$password2
+
+# if parameter "threads" not set, then threads=10
+if [[ -z $threads ]]; then
+    # Example: 10, but you can change it to any number, depends on your hardware. 
+    # Value 40 is get my CPU (Core i7-3770, 4 cores, 8 threads) to 75%, and RAM to ~9-10 GB 
+    threads=10
+fi
+
+# if parameter "dry" not set, then imapsync will be run in the real mode
+if [[ $dry != "--dry" ]]; then 
+    dry=""
+fi
 
 # read from file $input_file
 while IFS= read -r line
@@ -41,12 +54,12 @@ do
     if [[ -n $user_auth2 ]]; then
         user_auth2="--authuser2 $user_auth2"
     fi
-
+    
     # infinite loop for running imapsync instances
     while true;
     do
         # get number of imapsync instances running
-        imap_process=`ps aux | grep "[h]ost1" | wc -l`
+        imap_process=`ps aux | grep [i]mapsync | wc -l`
         
         if [ $imap_process -lt $threads ];
         then
